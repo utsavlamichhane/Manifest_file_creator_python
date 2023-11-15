@@ -1,8 +1,7 @@
 import pandas as pd
 import os
 
-# I am assuming that you just paste the fastq into a sheet like I showed on Monday, so the code assumes no header in the premanifest
-
+# Load the pre_manifest data assuming no header in the file
 df = pd.read_excel('pre_manifest.xlsx', header=None)
 
 # Define the base path for the file locations
@@ -15,22 +14,26 @@ manifest_data = {
     "reverse-absolute-filepath": []
 }
 
+# Dictionary to hold the index of each sample id
+sample_id_index = {}
+
 # Iterate through the rows in the dataframe
 for index, row in df.iterrows():
     filename = row[0]
-    sample_id, rest = filename.split('_', 1)
-    sample_id = sample_id.replace('Sample-', 'Sample_')  # Replace Sample-1 with Sample_1
+    # Extract sample id (assuming it's the part before the first '_')
+    sample_id = filename.split('_', 1)[0]
 
-    # Determine the type (forward or reverse) based on R1 or R2 in the filename
+    # Check for forward or reverse reads based on R1 or R2 in the filename
     if '_R1_' in filename:
         manifest_data["sample-id"].append(sample_id)
         manifest_data["forward-absolute-filepath"].append(os.path.join(base_path, filename))
-        # Just append an empty string for reverse paths; we'll fill this later
         manifest_data["reverse-absolute-filepath"].append('')
+        sample_id_index[sample_id] = len(manifest_data["sample-id"]) - 1
     elif '_R2_' in filename:
-        # Append the reverse file path to the last entry which should be its pair
-        if manifest_data["sample-id"][-1] == sample_id:  # Ensure it's the correct pair
-            manifest_data["reverse-absolute-filepath"][-1] = os.path.join(base_path, filename)
+        if sample_id in sample_id_index:
+            # Fill in the reverse file path for the correct sample id
+            idx = sample_id_index[sample_id]
+            manifest_data["reverse-absolute-filepath"][idx] = os.path.join(base_path, filename)
 
 # Create a new DataFrame with the manifest data
 manifest_df = pd.DataFrame(manifest_data)
